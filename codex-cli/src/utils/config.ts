@@ -36,8 +36,18 @@ export const OPENAI_TIMEOUT_MS =
 export const OPENAI_BASE_URL = process.env["OPENAI_BASE_URL"] || "";
 export let OPENAI_API_KEY = process.env["OPENAI_API_KEY"] || "";
 
+// Google Gemini API configuration
+export const GEMINI_TIMEOUT_MS =
+  parseInt(process.env["GEMINI_TIMEOUT_MS"] || "0", 10) || undefined;
+export const GEMINI_BASE_URL = process.env["GEMINI_BASE_URL"] || "";
+export let GEMINI_API_KEY = process.env["GEMINI_API_KEY"] || "";
+
 export function setApiKey(apiKey: string): void {
   OPENAI_API_KEY = apiKey;
+}
+
+export function setGeminiApiKey(apiKey: string): void {
+  GEMINI_API_KEY = apiKey;
 }
 
 // Formatting (quiet mode-only).
@@ -66,10 +76,13 @@ export type MemoryConfig = {
 // Represents full runtime config, including loaded instructions.
 export type AppConfig = {
   apiKey?: string;
+  geminiApiKey?: string;
+  aiProvider?: 'openai' | 'gemini';
   model: string;
   instructions: string;
   fullAutoErrorMode?: FullAutoErrorMode;
   memory?: MemoryConfig;
+  bountyMode?: boolean;
 };
 
 // ---------------------------------------------------------------------------

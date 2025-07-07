@@ -359,6 +359,87 @@ export function isSafeCommand(
         reason: "Locate command",
         group: "Searching",
       };
+    // Security tools for bug bounty mode
+    case "nmap":
+      return {
+        reason: "Network scanner (nmap)",
+        group: "Security scanning",
+      };
+    case "masscan":
+      return {
+        reason: "Fast port scanner (masscan)",
+        group: "Security scanning",
+      };
+    case "gobuster":
+      return {
+        reason: "Directory enumeration (gobuster)",
+        group: "Security reconnaissance",
+      };
+    case "sqlmap":
+      return {
+        reason: "SQL injection testing (sqlmap)",
+        group: "Security testing",
+      };
+    case "nikto":
+      return {
+        reason: "Web vulnerability scanner (nikto)",
+        group: "Security scanning",
+      };
+    case "nuclei":
+      return {
+        reason: "Vulnerability scanner (nuclei)",
+        group: "Security scanning",
+      };
+    case "subfinder":
+      return {
+        reason: "Subdomain discovery (subfinder)",
+        group: "Security reconnaissance",
+      };
+    case "amass":
+      return {
+        reason: "Attack surface mapping (amass)",
+        group: "Security reconnaissance",
+      };
+    case "httpx":
+      return {
+        reason: "HTTP toolkit (httpx)",
+        group: "Security reconnaissance",
+      };
+    case "ffuf":
+      return {
+        reason: "Web fuzzer (ffuf)",
+        group: "Security testing",
+      };
+    case "dirb":
+      return {
+        reason: "Web content scanner (dirb)",
+        group: "Security reconnaissance",
+      };
+    case "wpscan":
+      return {
+        reason: "WordPress scanner (wpscan)",
+        group: "Security scanning",
+      };
+    case "whatweb":
+      return {
+        reason: "Web fingerprinting (whatweb)",
+        group: "Security reconnaissance",
+      };
+    case "dig":
+      return {
+        reason: "DNS lookup (dig)",
+        group: "Security reconnaissance",
+      };
+    case "curl":
+      return {
+        reason: "HTTP client (curl)",
+        group: "Network testing",
+      };
+    case "wget":
+      return {
+        reason: "Web downloader (wget)",
+        group: "Network testing",
+      };
     case "git":
       switch (cmd1) {
         case "status":

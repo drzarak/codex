@@ -51,6 +51,7 @@ const cli = meow(
   Usage
     $ codex [options] <prompt>
     $ codex completion <bash|zsh|fish>
+    $ codex --bounty [target] <scan-type>
 
   Options
     -h, --help                 Show usage and exit
@@ -63,6 +64,8 @@ const cli = meow(
 
     --auto-edit                Automatically approve file edits; still prompt for commands
     --full-auto                Automatically approve edits and commands when executed in the sandbox
+    --bounty                   Launch in bug bounty/pentesting mode with specialized AI agent
+    --ai-provider <provider>   AI provider to use: 'openai' or 'gemini' (default: openai)
 
     --no-project-doc           Do not automatically include the repository's 'codex.md'
     --project-doc <file>       Include an additional markdown file at <file> as context
@@ -77,6 +80,11 @@ const cli = meow(
     -f, --full-context         Launch in "full-context" mode which loads the entire repository
                                into context and applies a batch of edits in one go. Incompatible
                                with all other flags, except for --model.
+
+  Bug Bounty examples
+    $ codex --bounty example.com "web application scan"
+    $ codex --bounty 192.168.1.0/24 "network enumeration"
+    $ codex --bounty --ai-provider gemini "analyze previous scan results"
 
   Examples
     $ codex "Write and run a python program that prints ASCII art"
@@ -135,6 +143,14 @@ const cli = meow(
         description:
           "Disable truncation of command stdout/stderr messages (show everything)",
         aliases: ["no-truncate"],
+      },
+      bounty: {
+        type: "boolean",
+        description: "Launch in bug bounty/pentesting mode with specialized AI agent",
+      },
+      aiProvider: {
+        type: "string",
+        description: "AI provider to use: 'openai' or 'gemini' (default: openai)",
       },
 
       // Experimental mode where whole directory is loaded in context and model is requested
@@ -205,8 +221,11 @@ if (cli.flags.config) {
 // ---------------------------------------------------------------------------
 
 const apiKey = process.env["OPENAI_API_KEY"];
+const geminiApiKey = process.env["GEMINI_API_KEY"];
+const aiProvider = (cli.flags.aiProvider as 'openai' | 'gemini') || 'openai';
 
-if (!apiKey) {
+// Check API keys based on provider
+if (aiProvider === 'openai' && !apiKey) {
   // eslint-disable-next-line no-console
   console.error(
     `\n${chalk.red("Missing OpenAI API key.")}\n\n` +
@@ -217,9 +236,21 @@ if (!apiKey) {
       )}\n`,
   );
   process.exit(1);
+} else if (aiProvider === 'gemini' && !geminiApiKey) {
+  // eslint-disable-next-line no-console
+  console.error(
+    `\n${chalk.red("Missing Google Gemini API key.")}\n\n` +
+      `Set the environment variable ${chalk.bold("GEMINI_API_KEY")} ` +
+      `and re-run this command.\n` +
+      `You can create a key here: ${chalk.bold(
+        chalk.underline("https://aistudio.google.com/app/apikey"),
+      )}\n`,
+  );
+  process.exit(1);
 }
 
 const fullContextMode = Boolean(cli.flags.fullContext);
+const bountyMode = Boolean(cli.flags.bounty);
 let config = loadConfig(undefined, undefined, {
   cwd: process.cwd(),
   disableProjectDoc: Boolean(cli.flags.noProjectDoc),
@@ -233,11 +264,14 @@ const imagePaths = cli.flags.image as Array<string> | undefined;
 
 config = {
   apiKey,
+  geminiApiKey,
+  aiProvider,
+  bountyMode,
   ...config,
   model: model ?? config.model,
 };
 
-if (!(await isModelSupportedForResponses(config.model))) {
+if (!(await isModelSupportedForResponses(config.model)) && aiProvider === 'openai') {
   // eslint-disable-next-line no-console
   console.error(
     `The model "${config.model}" does not appear in the list of models ` +
@@ -246,6 +280,45 @@ if (!(await isModelSupportedForResponses(config.model))) {
       `to see the full list) or choose another model with the --model flag.`,
   );
   process.exit(1);
+}
+
+// Handle bug bounty mode
+if (bountyMode) {
+  const { BountyAgent } = await import("./utils/bounty/bounty-agent");
+  
+  const target = cli.input[0] || "";
+  const scanType = cli.input[1] || "comprehensive scan";
+  
+  if (!target) {
+    // eslint-disable-next-line no-console
+    console.error(
+      `\n${chalk.red("Missing target for bug bounty mode.")}\n\n` +
+        `Usage: codex --bounty <target> [scan-type]\n` +
+        `Example: codex --bounty example.com "web application scan"\n`,
+    );
+    process.exit(1);
+  }
+  
+  // eslint-disable-next-line no-console
+  console.log(chalk.green(`🔍 Starting bug bounty assessment on: ${target}`));
+  // eslint-disable-next-line no-console
+  console.log(chalk.blue(`📋 Scan type: ${scanType}`));
+  // eslint-disable-next-line no-console
+  console.log(chalk.yellow(`🤖 AI Provider: ${aiProvider}`));
+  
+  const bountyAgent = new BountyAgent(
+    config.model,
+    config.instructions,
+    config,
+    () => {}, // onItem
+    () => {}, // onLoading
+    () => {}, // getCommandConfirmation
+    () => {}, // onLastResponseId
+    {} // approvalPolicy
+  );
+  
+  await bountyAgent.startBountySession(target, scanType);
+  process.exit(0);
 }
 
 let rollout: AppRollout | undefined;

@@ -301,7 +301,9 @@ if (bountyMode) {
   
   // eslint-disable-next-line no-console
   console.log(chalk.green(`🔍 Starting bug bounty assessment on: ${target}`));
+  // eslint-disable-next-line no-console
   console.log(chalk.blue(`📋 Scan type: ${scanType}`));
+  // eslint-disable-next-line no-console
   console.log(chalk.yellow(`🤖 AI Provider: ${aiProvider}`));
   
   const bountyAgent = new BountyAgent(

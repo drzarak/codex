@@ -8,11 +8,11 @@ export interface GeminiConfig {
 
 export interface GeminiMessage {
   role: 'user' | 'model';
-  parts: { text: string }[];
+  parts: Array<{ text: string }>;
 }
 
 export interface GeminiRequest {
-  contents: GeminiMessage[];
+  contents: Array<GeminiMessage>;
   generationConfig?: {
     temperature?: number;
     topK?: number;
@@ -22,13 +22,13 @@ export interface GeminiRequest {
 }
 
 export interface GeminiResponse {
-  candidates: {
+  candidates: Array<{
     content: {
-      parts: { text: string }[];
+      parts: Array<{ text: string }>;
       role: string;
     };
     finishReason: string;
-  }[];
+  }>;
 }
 
 export class GeminiClient {
@@ -92,9 +92,12 @@ export class GeminiClient {
 
     try {
       while (true) {
+        // eslint-disable-next-line no-await-in-loop
         const { done, value } = await reader.read();
         
-        if (done) break;
+        if (done) {
+          break;
+        }
         
         const chunk = decoder.decode(value, { stream: true });
         const lines = chunk.split('\n');

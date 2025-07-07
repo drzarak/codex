@@ -1,12 +1,12 @@
 export interface SecurityTool {
   name: string;
   description: string;
-  installCommand: string[];
+  installCommand: Array<string>;
   usage: string;
   category: 'reconnaissance' | 'scanning' | 'exploitation' | 'analysis';
 }
 
-export const SECURITY_TOOLS: SecurityTool[] = [
+export const SECURITY_TOOLS: Array<SecurityTool> = [
   {
     name: 'nmap',
     description: 'Network exploration tool and security scanner',
@@ -118,12 +118,12 @@ export function getToolByName(name: string): SecurityTool | undefined {
   return SECURITY_TOOLS.find(tool => tool.name === name);
 }
 
-export function getToolsByCategory(category: SecurityTool['category']): SecurityTool[] {
+export function getToolsByCategory(category: SecurityTool['category']): Array<SecurityTool> {
   return SECURITY_TOOLS.filter(tool => tool.category === category);
 }
 
-export function generateToolInstallScript(tools: string[]): string {
-  const selectedTools = tools.map(name => getToolByName(name)).filter(Boolean) as SecurityTool[];
+export function generateToolInstallScript(tools: Array<string>): string {
+  const selectedTools = tools.map(name => getToolByName(name)).filter(Boolean) as Array<SecurityTool>;
   
   let script = '#!/bin/bash\n\n';
   script += '# Bug Bounty Tools Installation Script\n';
@@ -147,6 +147,7 @@ export function generateToolInstallScript(tools: string[]): string {
 
 export function checkToolAvailability(toolName: string): Promise<boolean> {
   return new Promise((resolve) => {
+    // eslint-disable-next-line @typescript-eslint/no-var-requires
     const { spawn } = require('child_process');
     const child = spawn('which', [toolName], { stdio: 'ignore' });
     

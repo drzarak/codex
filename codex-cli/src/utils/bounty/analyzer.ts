@@ -4,10 +4,10 @@ export interface VulnerabilityFinding {
   severity: 'critical' | 'high' | 'medium' | 'low' | 'info';
   cvssScore?: number;
   description: string;
-  evidence: string[];
+  evidence: Array<string>;
   impact: string;
   remediation: string;
-  references: string[];
+  references: Array<string>;
   tool: string;
   timestamp: Date;
 }
@@ -17,17 +17,17 @@ export interface ScanResult {
   scanType: string;
   startTime: Date;
   endTime: Date;
-  findings: VulnerabilityFinding[];
-  toolsUsed: string[];
-  metadata: Record<string, any>;
+  findings: Array<VulnerabilityFinding>;
+  toolsUsed: Array<string>;
+  metadata: Record<string, unknown>;
 }
 
 export interface BountySession {
   id: string;
   target: string;
   startTime: Date;
-  scans: ScanResult[];
-  improvements: string[];
+  scans: Array<ScanResult>;
+  improvements: Array<string>;
   notes: string;
 }
 
@@ -40,13 +40,13 @@ export class VulnerabilityAnalyzer {
     info: 1
   };
 
-  static calculateRiskScore(findings: VulnerabilityFinding[]): number {
+  static calculateRiskScore(findings: Array<VulnerabilityFinding>): number {
     return findings.reduce((score, finding) => {
       return score + this.severityWeights[finding.severity];
     }, 0);
   }
 
-  static categorizeFindings(findings: VulnerabilityFinding[]): Record<string, VulnerabilityFinding[]> {
+  static categorizeFindings(findings: Array<VulnerabilityFinding>): Record<string, Array<VulnerabilityFinding>> {
     return findings.reduce((categories, finding) => {
       const category = this.getVulnerabilityCategory(finding);
       if (!categories[category]) {
@@ -54,7 +54,7 @@ export class VulnerabilityAnalyzer {
       }
       categories[category].push(finding);
       return categories;
-    }, {} as Record<string, VulnerabilityFinding[]>);
+    }, {} as Record<string, Array<VulnerabilityFinding>>);
   }
 
   private static getVulnerabilityCategory(finding: VulnerabilityFinding): string {
@@ -206,7 +206,7 @@ export class BountySessionManager {
     return this.sessions.get(sessionId);
   }
   
-  getAllSessions(): BountySession[] {
+  getAllSessions(): Array<BountySession> {
     return Array.from(this.sessions.values());
   }
   

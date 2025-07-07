@@ -1,10 +1,14 @@
-import { AgentLoop } from "../agent/agent-loop";
+import type { ScanResult } from "./analyzer";
+import type { GeminiClient } from "./gemini-client";
+import type { AppConfig } from "../config";
+
+import { VulnerabilityAnalyzer, BountySessionManager } from "./analyzer";
+import { createGeminiClient } from "./gemini-client";
 import { getBountyPrompt } from "./instructions";
-import { VulnerabilityAnalyzer, BountySessionManager, ScanResult } from "./analyzer";
-import { SECURITY_TOOLS, checkToolAvailability, generateToolInstallScript } from "./tools";
-import { createGeminiClient, GeminiClient } from "./gemini-client";
+import { checkToolAvailability, generateToolInstallScript } from "./tools";
 import { VulnerabilityDatabase } from "./vulnerability-db";
-import { AppConfig } from "../config";
+import { AgentLoop } from "../agent/agent-loop";
+
 
 export class BountyAgent extends AgentLoop {
   private sessionManager: BountySessionManager;
@@ -16,11 +20,11 @@ export class BountyAgent extends AgentLoop {
     model: string,
     instructions: string,
     config: AppConfig,
-    onItem: any,
-    onLoading: any,
-    getCommandConfirmation: any,
-    onLastResponseId: any,
-    approvalPolicy: any
+    onItem: unknown,
+    onLoading: unknown,
+    getCommandConfirmation: unknown,
+    onLastResponseId: unknown,
+    approvalPolicy: unknown
   ) {
     // Override instructions with bounty-specific prompts
     const bountyInstructions = instructions + "\n\n" + getBountyPrompt("", "");
@@ -43,6 +47,7 @@ export class BountyAgent extends AgentLoop {
       try {
         this.geminiClient = createGeminiClient(config.geminiApiKey);
       } catch (error) {
+        // eslint-disable-next-line no-console
         console.warn("Failed to initialize Gemini client:", error);
       }
     }
@@ -53,6 +58,7 @@ export class BountyAgent extends AgentLoop {
     this.currentScanType = scanType;
     
     const session = this.sessionManager.createSession(target);
+    // eslint-disable-next-line no-console
     console.log(`Started bug bounty session: ${session.id}`);
     
     // Check and install required tools
@@ -73,9 +79,10 @@ export class BountyAgent extends AgentLoop {
 
   private async ensureToolsAvailability(): Promise<void> {
     const requiredTools = this.getRequiredToolsForScanType(this.currentScanType || "");
-    const missingTools: string[] = [];
+    const missingTools: Array<string> = [];
     
     for (const toolName of requiredTools) {
+      // eslint-disable-next-line no-await-in-loop
       const isAvailable = await checkToolAvailability(toolName);
       if (!isAvailable) {
         missingTools.push(toolName);
@@ -83,7 +90,9 @@ export class BountyAgent extends AgentLoop {
     }
     
     if (missingTools.length > 0) {
+      // eslint-disable-next-line no-console
       console.log(`Missing tools detected: ${missingTools.join(", ")}`);
+      // eslint-disable-next-line no-console
       console.log("Generating installation script...");
       
       const installScript = generateToolInstallScript(missingTools);
@@ -93,12 +102,14 @@ export class BountyAgent extends AgentLoop {
       const scriptPath = '/tmp/install-bounty-tools.sh';
       fs.writeFileSync(scriptPath, installScript);
       
+      // eslint-disable-next-line no-console
       console.log(`Installation script saved to: ${scriptPath}`);
+      // eslint-disable-next-line no-console
       console.log("Please review and run the script to install missing tools.");
     }
   }
 
-  private getRequiredToolsForScanType(scanType: string): string[] {
+  private getRequiredToolsForScanType(scanType: string): Array<string> {
     const type = scanType.toLowerCase();
     
     if (type.includes("web") || type.includes("application")) {
@@ -182,6 +193,7 @@ Please identify any potential security vulnerabilities and format them as JSON w
       }));
       
     } catch (error) {
+      // eslint-disable-next-line no-console
       console.error("Failed to analyze scan results:", error);
     }
 
@@ -200,6 +212,7 @@ Please identify any potential security vulnerabilities and format them as JSON w
         
         return response.candidates[0]?.content?.parts[0]?.text || "";
       } catch (error) {
+        // eslint-disable-next-line no-console
         console.warn("Gemini analysis failed, falling back to OpenAI:", error);
       }
     }
@@ -208,7 +221,7 @@ Please identify any potential security vulnerabilities and format them as JSON w
     return "";
   }
 
-  private parseVulnerabilityAnalysis(analysis: string): any[] {
+  private parseVulnerabilityAnalysis(analysis: string): Array<unknown> {
     try {
       // Try to extract JSON from the analysis
       const jsonMatch = analysis.match(/\{[\s\S]*\}/);
@@ -217,14 +230,15 @@ Please identify any potential security vulnerabilities and format them as JSON w
         return parsed.vulnerabilities || [];
       }
     } catch (error) {
+      // eslint-disable-next-line no-console
       console.warn("Failed to parse vulnerability analysis:", error);
     }
     
     return [];
   }
 
-  async generateImprovementSuggestions(scanResults: ScanResult[]): Promise<string[]> {
-    const improvements: string[] = [];
+  async generateImprovementSuggestions(scanResults: Array<ScanResult>): Promise<Array<string>> {
+    const improvements: Array<string> = [];
     
     if (scanResults.length === 0) {
       return ["No scan results available for analysis"];

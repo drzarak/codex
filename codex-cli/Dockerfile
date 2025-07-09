@@ -86,8 +86,8 @@ USER node
 # Create necessary directories for bug bounty operations
 RUN mkdir -p /home/node/.codex/tools /home/node/.codex/results /home/node/.codex/browser_data
 
-# Expose port 222 for web interface
-EXPOSE 222
+# Expose port 3222 for web interface
+EXPOSE 3222
 
 # Default command starts the bug bounty web server
 CMD ["codex", "bugbounty", "server"]

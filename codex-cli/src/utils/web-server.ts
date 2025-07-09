@@ -27,7 +27,7 @@ export class BugBountyWebServer {
   private wss = new WebSocketServer({ server: this.server });
   private clients = new Set<any>();
 
-  constructor(private port = 222) {
+  constructor(private port = 3222) {
     this.setupMiddleware();
     this.setupRoutes();
     this.setupWebSocket();

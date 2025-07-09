@@ -69,7 +69,7 @@ const cli = meow(
     --full-stdout              Do not truncate stdout/stderr from command outputs
 
   Bug Bounty Mode
-    $ codex bugbounty server   Start web interface on port 222
+    $ codex bugbounty server   Start web interface on port 3222
     $ codex bugbounty add <domain> [description]
                                Add a new target for scanning
     $ codex bugbounty scan <domain>
@@ -198,9 +198,9 @@ if (cli.input[0] === "bugbounty") {
   switch (subcommand) {
     case "server":
       console.log(chalk.cyan("🚀 Starting AI Bug Bounty Hunter web interface..."));
-      const webServer = new BugBountyWebServer(222);
+      const webServer = new BugBountyWebServer(3222);
       await webServer.start();
-      console.log(chalk.green(`✅ Web interface available at http://localhost:222`));
+      console.log(chalk.green(`✅ Web interface available at http://localhost:3222`));
       console.log(chalk.yellow("Press Ctrl+C to stop the server"));
       
       // Keep the process alive

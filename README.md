@@ -1,5 +1,5 @@
-<h1 align="center">OpenAI Codex CLI</h1>
-<p align="center">Lightweight coding agent that runs in your terminal</p>
+<h1 align="center">AI Bug Bounty Hunter</h1>
+<p align="center">Comprehensive AI-powered bug bounty tool with web interface and automated scanning</p>
 
 <p align="center"><code>npm i -g @openai/codex</code></p>
 

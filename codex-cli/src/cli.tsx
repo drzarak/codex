@@ -29,6 +29,10 @@ import {
 } from "./utils/model-utils.js";
 import { parseToolCall } from "./utils/parsers";
 import { onExit, setInkRenderer } from "./utils/terminal";
+import { BugBountyWebServer } from "./utils/web-server.js";
+import { BugBountyScanner } from "./utils/bug-bounty-scanner.js";
+import { BrowserAutomationService } from "./utils/browser-automation.js";
+import { addTarget, getTargets } from "./utils/database.js";
 import chalk from "chalk";
 import { spawnSync } from "child_process";
 import fs from "fs";
@@ -41,16 +45,12 @@ import React from "react";
 // immediately. This must be run with DEBUG=1 for logging to work.
 initLogger();
 
-// TODO: migrate to new versions of quiet mode
-//
-//     -q, --quiet    Non-interactive quiet mode that only prints final message
-//     -j, --json     Non-interactive JSON output mode that prints JSON messages
-
 const cli = meow(
   `
   Usage
     $ codex [options] <prompt>
     $ codex completion <bash|zsh|fish>
+    $ codex bugbounty [subcommand]
 
   Options
     -h, --help                 Show usage and exit
@@ -62,11 +62,21 @@ const cli = meow(
     -a, --approval-mode <mode> Override the approval policy: 'suggest', 'auto-edit', or 'full-auto'
 
     --auto-edit                Automatically approve file edits; still prompt for commands
-    --full-auto                Automatically approve edits and commands when executed in the sandbox
+    --full-auto                Automatically approve edits and commands when executed in sandbox
 
     --no-project-doc           Do not automatically include the repository's 'codex.md'
     --project-doc <file>       Include an additional markdown file at <file> as context
     --full-stdout              Do not truncate stdout/stderr from command outputs
+
+  Bug Bounty Mode
+    $ codex bugbounty server   Start web interface on port 3222
+    $ codex bugbounty add <domain> [description]
+                               Add a new target for scanning
+    $ codex bugbounty scan <domain>
+                               Start comprehensive scan on target
+    $ codex bugbounty auth <domain> <login-url>
+                               Set up authentication for target
+    $ codex bugbounty list     List all targets and their status
 
   Dangerous options
     --dangerously-auto-approve-everything
@@ -81,6 +91,9 @@ const cli = meow(
   Examples
     $ codex "Write and run a python program that prints ASCII art"
     $ codex -q "fix build issues"
+    $ codex bugbounty server
+    $ codex bugbounty add example.com "Test target for bug bounty"
+    $ codex bugbounty scan example.com
     $ codex completion bash
 `,
   {
@@ -114,7 +127,7 @@ const cli = meow(
       fullAuto: {
         type: "boolean",
         description:
-          "Automatically run commands in a sandbox; only prompt for failures.",
+          "Automatically run commands without sandbox restrictions for bug bounty operations.",
       },
       approvalMode: {
         type: "string",
@@ -136,9 +149,6 @@ const cli = meow(
           "Disable truncation of command stdout/stderr messages (show everything)",
         aliases: ["no-truncate"],
       },
-
-      // Experimental mode where whole directory is loaded in context and model is requested
-      // to make code edits in a single pass.
       fullContext: {
         type: "boolean",
         aliases: ["f"],
@@ -180,6 +190,132 @@ complete -c codex -a '(_fish_complete_path)' -d 'file path'`,
   console.log(script);
   process.exit(0);
 }
+
+// Handle bug bounty subcommands
+if (cli.input[0] === "bugbounty") {
+  const subcommand = cli.input[1];
+  
+  switch (subcommand) {
+    case "server":
+      console.log(chalk.cyan("🚀 Starting AI Bug Bounty Hunter web interface..."));
+      const webServer = new BugBountyWebServer(3222);
+      await webServer.start();
+      console.log(chalk.green(`✅ Web interface available at http://localhost:3222`));
+      console.log(chalk.yellow("Press Ctrl+C to stop the server"));
+      
+      // Keep the process alive
+      process.on("SIGINT", async () => {
+        console.log(chalk.yellow("\n🛑 Shutting down server..."));
+        await webServer.stop();
+        process.exit(0);
+      });
+      
+      // Keep alive
+      await new Promise(() => {});
+      break;
+      
+    case "add":
+      const domain = cli.input[2];
+      const description = cli.input[3] || "";
+      
+      if (!domain) {
+        console.error(chalk.red("❌ Domain is required"));
+        console.log("Usage: codex bugbounty add <domain> [description]");
+        process.exit(1);
+      }
+      
+      try {
+        const targetId = addTarget({ domain, description, status: "active" });
+        console.log(chalk.green(`✅ Added target: ${domain} (ID: ${targetId})`));
+      } catch (error) {
+        console.error(chalk.red(`❌ Failed to add target: ${error}`));
+        process.exit(1);
+      }
+      break;
+      
+    case "scan":
+      const scanDomain = cli.input[2];
+      
+      if (!scanDomain) {
+        console.error(chalk.red("❌ Domain is required"));
+        console.log("Usage: codex bugbounty scan <domain>");
+        process.exit(1);
+      }
+      
+      const targets = getTargets();
+      const target = targets.find(t => t.domain === scanDomain);
+      
+      if (!target) {
+        console.error(chalk.red(`❌ Target ${scanDomain} not found. Add it first with: codex bugbounty add ${scanDomain}`));
+        process.exit(1);
+      }
+      
+      console.log(chalk.cyan(`🔍 Starting comprehensive scan for ${scanDomain}...`));
+      const scanner = new BugBountyScanner();
+      await scanner.startComprehensiveScan(target.id!);
+      console.log(chalk.green(`✅ Scan completed for ${scanDomain}`));
+      break;
+      
+    case "auth":
+      const authDomain = cli.input[2];
+      const loginUrl = cli.input[3];
+      
+      if (!authDomain || !loginUrl) {
+        console.error(chalk.red("❌ Domain and login URL are required"));
+        console.log("Usage: codex bugbounty auth <domain> <login-url>");
+        process.exit(1);
+      }
+      
+      const authTargets = getTargets();
+      const authTarget = authTargets.find(t => t.domain === authDomain);
+      
+      if (!authTarget) {
+        console.error(chalk.red(`❌ Target ${authDomain} not found. Add it first.`));
+        process.exit(1);
+      }
+      
+      console.log(chalk.cyan(`🔐 Setting up authentication for ${authDomain}...`));
+      const browser = new BrowserAutomationService();
+      const result = await browser.navigateAndLogin(authTarget.id!, loginUrl);
+      
+      if (result.success) {
+        console.log(chalk.green(`✅ Authentication setup completed for ${authDomain}`));
+      } else {
+        console.error(chalk.red(`❌ Authentication failed: ${result.error}`));
+      }
+      
+      await browser.closeBrowser();
+      break;
+      
+    case "list":
+      const allTargets = getTargets();
+      
+      if (allTargets.length === 0) {
+        console.log(chalk.yellow("📋 No targets found. Add targets with: codex bugbounty add <domain>"));
+      } else {
+        console.log(chalk.cyan("📋 Bug Bounty Targets:"));
+        console.log();
+        
+        for (const target of allTargets) {
+          console.log(chalk.bold(`${target.domain} (ID: ${target.id})`));
+          console.log(`  Status: ${target.status}`);
+          console.log(`  Description: ${target.description || "None"}`);
+          console.log(`  Created: ${new Date(target.created_at!).toLocaleString()}`);
+          console.log(`  Auth Cookies: ${Object.keys(target.auth_cookies || {}).length > 0 ? "✅" : "❌"}`);
+          console.log();
+        }
+      }
+      break;
+      
+    default:
+      console.error(chalk.red(`❌ Unknown bug bounty subcommand: ${subcommand}`));
+      console.log("Available subcommands: server, add, scan, auth, list");
+      process.exit(1);
+  }
+  
+  process.exit(0);
+}
+
 // Show help if requested
 if (cli.flags.help) {
   cli.showHelp();
@@ -305,17 +441,7 @@ if (quietMode) {
 }
 
 // Default to the "suggest" policy.
-// Determine the approval policy to use in interactive mode.
-//
-// Priority (highest → lowest):
-// 1. --fullAuto – run everything automatically in a sandbox.
-// 2. --dangerouslyAutoApproveEverything – run everything **without** a sandbox
-//    or prompts.  This is intended for completely trusted environments.  Since
-//    it is more dangerous than --fullAuto we deliberately give it lower
-//    priority so a user specifying both flags still gets the safer behaviour.
-// 3. --autoEdit – automatically approve edits, but prompt for commands.
-// 4. Default – suggest mode (prompt for everything).
-
+// Modified approval policy for bug bounty operations to allow more automation
 const approvalPolicy: ApprovalPolicy =
   cli.flags.fullAuto || cli.flags.approvalMode === "full-auto"
     ? AutoApprovalMode.FULL_AUTO

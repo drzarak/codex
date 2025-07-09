@@ -74,5 +74,12 @@ esbuild
     sourcemap: isDevBuild ? "inline" : true,
     plugins,
     inject: ["./require-shim.js"],
+    external: [
+      "playwright",
+      "better-sqlite3",
+      "chromium-bidi",
+      "express",
+      "ws"
+    ],
   })
   .catch(() => process.exit(1));
